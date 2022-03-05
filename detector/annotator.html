@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>Annotator</title>
+
+<body>
+<p>
+Input image
+<input type="file" id="imgpath">
+
+<br>
+Output json
+<input type="text" id="savepath">
+<input type="button" value="Save" onclick="file_save();">
+
+<p>
+<div class="annotation"></div>
+
+</body>
+<script src="http://d3js.org/d3.v6.min.js"></script>
+<script>
+
+// Define 'state' the corner coordinates and the zoom/pan transform.
+const xoffset = 500, yoffset = 500,
+      xlength = 1000, ylength = 1000;
+
+// TODO(jeff.walls) included 'index' here so that we can update polygon points
+// when we drag the corners. This feels clunky... feel like there should be a
+// better way.
+let corners = [{'index': 0, 'c': 'blue', 'x': xoffset, 'y': yoffset},
+               {'index': 1, 'c': 'red', 'x': xoffset + xlength, 'y': yoffset},
+               {'index': 2, 'c': 'red', 'x': xoffset + xlength, 'y': yoffset + ylength},
+               {'index': 3, 'c': 'red', 'x': xoffset, 'y': yoffset + ylength}];
+
+// TODO(jeff.walls) might be nice to set some initial params.
+let zoom_transform = d3.zoomIdentity
+
+// File management...
+function file_selected(e) {
+    const file = e.target.files[0];
+    console.log('reading input image: ' + escape(file.name))
+
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        img.attr('xlink:href', e.target.result);
+    };
+    reader.readAsDataURL(file);
+}
+document.getElementById('imgpath').addEventListener('change', file_selected, false);
+
+function file_save() {
+    const savepath = document.getElementById('savepath');
+    if (savepath.value.length == 0) {
+        console.log('Must provide valid save path!')
+        return;
+    }
+
+    console.log('saving json to ' + savepath.value);
+    data = corners.map((d) => ({'x': d.x, 'y': d.y}));
+
+    let a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], {type: 'text/plain'}));
+    a.download = savepath.value;
+
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+// Set up window with gray 'canvas'.
+const margin = {top: 50, right: 50, bottom: 50, left: 50},
+      width = 1280,
+      height = 720;
+
+let svg = d3.select('.annotation').append('svg')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom)
+    .style('margin-left', margin.left + 'px')
+    .append('g');
+
+svg.append('rect')
+    .attr('fill', '#eee')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom);
+
+// Set up zoom/pan logic.
+function zoom_callback(e) {
+    zoom_transform = e.transform;
+    win.attr('transform', e.transform);
+}
+
+let zoom = d3.zoom()
+    .scaleExtent([0.01, 10])
+    .on('zoom', zoom_callback);
+
+let win = svg.append('g')
+    .call(zoom)
+    .append('g');
+
+// Add image to annotation window.
+let img = win.append('image');
+
+// Add a polygon and corner circles to the window.
+win.append('polygon')
+    .attr('points', corners.map((d) => [d.x, d.y]))
+    .attr('fill-opacity', 0)
+    .attr('stroke-width', '1px')
+    .attr('stroke', 'red')
+    .append('g');
+
+function drag_start_callback() {
+    d3.select(this).raise();
+}
+
+function drag_callback(e) {
+    let cx = (e.sourceEvent.offsetX - zoom_transform.x) / zoom_transform.k,
+        cy = (e.sourceEvent.offsetY - zoom_transform.y) / zoom_transform.k;
+
+    // Update circle marker...
+    d3.select(this)
+        .attr('cx', cx)
+        .attr('cy', cy);
+
+    // Update polygon points...
+    corners[e.subject.index].x = cx;
+    corners[e.subject.index].y = cy;
+    d3.select(this.parentNode).select('polygon')
+        .attr('points', corners.map((d) => [d.x, d.y]));
+}
+
+let drag_gesture = d3.drag()
+    .on('start', drag_start_callback)
+    .on('drag', drag_callback);
+
+win.selectAll('corners')
+    .data(corners)
+    .enter().append('circle')
+        .attr('fill-opacity', 0.25)
+        .attr('fill', function(d) { return d.c; })
+        .attr('stroke-width', '10px')
+        .attr('stroke', function(d) { return d.c; })
+        .attr('cx', function(d) { return d.x; })
+        .attr('cy', function(d) { return d.y; })
+        .attr('r', 25)
+        .call(drag_gesture);
+
+</script>
+</html>
