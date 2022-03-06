@@ -223,4 +223,4 @@ if __name__ == '__main__':
                         datefmt='%Y%m%d %H:%M:%S',
                         level=logging.INFO,
                         stream=sys.stdout)
-    sys.exit(main())
+    main()

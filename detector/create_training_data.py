@@ -13,7 +13,6 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import tqdm
 
 from canonical import CanonicalBoard
 import ontology
@@ -66,4 +65,4 @@ if __name__ == '__main__':
                         datefmt='%Y%m%d %H:%M:%S',
                         level=logging.INFO,
                         stream=sys.stdout)
-    sys.exit(main())
+    main()
