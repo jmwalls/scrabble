@@ -6,9 +6,8 @@ from functools import reduce
 from operator import mul
 import string
 
-import numpy as np
 
-
+# Each letter point value.
 LETTER_SCORES = {'a': 1,
                  'b': 3,
                  'c': 3,
@@ -36,6 +35,8 @@ LETTER_SCORES = {'a': 1,
                  'y': 4,
                  'z': 10}
 
+
+# Letter premium multipliers per square.
 LETTER_PREMIUM = [1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1,
                   1, 1, 1, 1, 1, 3, 1, 1, 1, 3, 1, 1, 1, 1, 1,
                   1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1,
@@ -52,6 +53,8 @@ LETTER_PREMIUM = [1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1,
                   1, 1, 1, 1, 1, 3, 1, 1, 1, 3, 1, 1, 1, 1, 1,
                   1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1]
 
+
+# Word premium multipliers per square.
 WORD_PREMIUM = [3, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 3,
                 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1,
                 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1,
@@ -67,6 +70,7 @@ WORD_PREMIUM = [3, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 3,
                 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1,
                 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1,
                 3, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 3]
+
 
 COLS = list(string.ascii_uppercase[:15])
 ROWS = [str(i + 1) for i in range(15)]
@@ -102,8 +106,13 @@ def index_to_pos(*, index):
     return COLS[col] + ROWS[row]
 
 
-def _index(*, row, col, num_letters, orientation):
-    """XXX
+def _indices(*, row, col, num_letters, orientation):
+    """Return board indices for a set of letters.
+
+    @param row: start row index of word.
+    @param col: start col index of word.
+    @param num_letters: length of letter set.
+    @orientation: letter set orientation.
     """
     # XXX check for valid bounds
     if orientation == Orientation.HORIZONTAL:
@@ -113,132 +122,172 @@ def _index(*, row, col, num_letters, orientation):
     return index
 
 
-class Word:
-    """XXX
-    """
-    def __init__(self, *, letters, pos, orientation):
-        assert isinstance(orientation, Orientation)
-        self.pos = pos
-        self.letters = letters
-        self.orientation = orientation
-
-    @property
-    def index(self):
-        """XXX
-        """
-        return _index(**pos_to_rc(pos=self.pos),
-                      num_letters=len(self.letters),
-                      orientation=self.orientation)
-
-    def neighbors(self):
-        row, col = pos_to_rc(pos=self.pos).values()
-
-        def _inbounds(i):
-            return i < 15 and i >= 0
-
-        num_letters = len(self.letters)
-        if self.orientation == Orientation.HORIZONTAL:
-            # Add all the up/down neighbors.
-            rows = [row + i for i in [1, -1] if _inbounds(row + i)]
-            neighbors = [[rc_to_index(row=r, col=col + c) for r in rows] for c in range(num_letters)]
-
-            # Add the left/right neighbors.
-            neighbors.extend([[rc_to_index(row=row, col=col + i)
-                               for i in [-1, num_letters] if _inbounds(col + i)]])
-        elif self.orientation == Orientation.VERTICAL:
-            # Add all the left/right neighbors.
-            cols = [col + i for i in [1, -1] if _inbounds(col + i)]
-            neighbors = [[rc_to_index(row=row + r, col=c) for c in cols] for r in range(num_letters)]
-
-            # Add the up/down neighbors.
-            neighbors.extend([[rc_to_index(row=row + i, col=col)
-                               for i in [-1, num_letters] if _inbounds(row + i)]])
-        return neighbors
-
-    def __repr__(self):
-        return self.letters
-
+def _group(indices):
+    # XXX
+    splits = [i for i, (i1, i2) in enumerate(zip(indices, indices[1:])) if i2 != i1 + 1]
+    splits = [0] + splits + [len(indices)]
+    return [indices[s1:s2] for s1, s2 in zip(splits, splits[1:])]
 
 class Board:
+    """XXX
+
+    @param letters: dict mapping board index to letter.
+    """
+    def __init__(self):
+        self._letters = {}
+
+    def add(self, *, letters, pos, orientation):
+        """XXX
+
+        @param letters: letter set (can contain letters already on the board...)
+        @param pos: start position of the letter set.
+        @param orientation: orientation of the letter set.
+
+        @return XXX
+        # XXX return indices and words
+        """
+        # XXX check that indices are in bounds or should check upstream?
+        row, col = pos_to_rc(pos=pos).values()
+        indices = _indices(row=row,
+                           col=col,
+                           num_letters=len(letters),
+                           orientation=orientation)
+
+        # Check that we're not resetting a tile.
+        for k, v in zip(indices, letters):
+            if k in self._letters and v != self._letters[k]:
+                r, c = index_to_rc(index=k).values()
+                raise Exception(f'Letter already set for {COLS[c]}{ROWS[r]}')
+
+        added_indices = [k for k in indices if k not in self._letters]
+        first_word = len(self._letters) == 0
+
+        for k, v in zip(indices, letters):
+            self._letters[k] = v
+
+        if first_word:
+            return [(letters, indices)]
+
+        def _has_letter(i):
+            return i in self._letters
+
+        # Check along the axis that the word was added...
+        # XXX would be nice to have a cleaner way to do this instead of copying
+        # functionality for vertical/horizontal...
+        words = []
+        if orientation == Orientation.VERTICAL:
+            line_indices = [i for i in range(15) if _has_letter(rc_to_index(row=i, col=col))]
+            assert len(line_indices) > 0
+
+            for group in _group(line_indices):
+                if row in group:
+                    word = ''.join([self._letters[rc_to_index(row=i, col=col)] for i in group])
+                    words.append((word, group))
+        elif orientation == Orientation.HORIZONTAL:
+            line_indices = [i for i in range(15) if _has_letter(rc_to_index(row=row, col=i))]
+            assert len(line_indices) > 0
+
+            for group in _group(line_indices):
+                if col in group:
+                    word = ''.join([self._letters[rc_to_index(row=row, col=i)] for i in group])
+                    words.append((word, group))
+
+        # Check along the off-axiss for each letter that was added...
+        if orientation == Orientation.VERTICAL:
+            rows = [row + i for i in range(len(letters))]
+            for r in rows:
+                line_indices = [i for i in range(15) if _has_letter(rc_to_index(row=r, col=i))]
+                assert len(line_indices) > 0
+
+                for group in _group(line_indices):
+                    if len(group) > 1 and col in group:
+                        word_indices = [rc_to_index(row=r, col=i) for i in group]
+                        if any([i in added_indices for i in word_indices]):
+                            words.append((''.join([self._letters[k] for k in word_indices]),
+                                          word_indices))
+        elif orientation == Orientation.HORIZONTAL:
+            cols = [col + i for i in range(len(letters))]
+            for c in cols:
+                line_indices = [i for i in range(15) if _has_letter(rc_to_index(row=i, col=c))]
+                assert len(line_indices) > 0
+
+                for group in _group(line_indices):
+                    if len(group) > 1 and row in group:
+                        word_indices = [rc_to_index(row=i, col=c) for i in group]
+                        if any([i in added_indices for i in word_indices]):
+                            words.append((''.join([self._letters[k] for k in word_indices]),
+                                          word_indices))
+        return words
+
+    def __str__(self):
+        board = ['.' for c in range(15) for r in range(15)]
+        for k, v in self._letters.items():
+            board[k] = v
+
+        header = '   {}'.format(' '.join(COLS))
+        def _line(j):
+            return '{:2s} {}'.format(
+                    ROWS[j],
+                    ' '.join([f'{l}' for l in board[15 * j:15 * (j + 1)]]))
+        return '\n'.join([header] + [_line(i) for i in range(15)])
+
+
+class Game:
     """XXX
 
     Note: users are expected to save history if they so desire, either for
     analysis or to be able to restart from a partial game.
 
-    @param _mask: premium square mask
+    @param _num_players: total number of players (immutable)
+    @param _player: current player index
+
+    @param _score: dict mapping player index to current score
+    @param _turns: dict mapping player index to number of turns played
+
+    @param _mask: track if a premium square has been used
     """
     def __init__(self, *, num_players):
         if num_players < 1:
             raise ValueError('must have at least 1 player!')
 
-        self._score = {i: 0 for i in range(num_players)}
-        self._turns = {i: 0 for i in range(num_players)}
-
         self._num_players = num_players
         self._player = 0
 
+        self._score = {i: 0 for i in range(num_players)}
+        self._turns = {i: 0 for i in range(num_players)}
+
         self._mask = [False for c in range(15) for r in range(15)]
-        self._words = []
+        self._board = Board()
 
     def play(self, *, player, letters, pos, orientation):
         if player != self._player:
             raise Exception('not current player...')
 
-        # XXX what if we stored words and their indices?
-        #   * easier to look for intersections?
-        #   * easier to validate a legal move?
-        #   * easier to find additional words?
-        # a new set of letters can:
-        #   * add new words
-        #   * modify existing words
-        candidate = Word(letters=letters.lower(), pos=pos, orientation=orientation)
-
         # H8 must be played on first move.
+        indices = _indices(**pos_to_rc(pos=pos),
+                           num_letters=len(letters),
+                           orientation=orientation)
         if sum(self._turns.values()) == 0 and \
-                rc_to_index(**pos_to_rc(pos='h8')) not in candidate.index:
+                rc_to_index(**pos_to_rc(pos='h8')) not in indices:
             raise Exception('h8 must be played on first turn!')
 
-        # Make sure we're not changing a letter.
-        board_letters = {i: l for w in self._words
-                         for i, l in zip(w.index, w.letters)}
-        for i, l in zip(candidate.index, candidate.letters):
-            if i in board_letters and l != board_letters[i]:
-                r, c = index_to_rc(index=i).values()
-                raise Exception(f'Letter already set for {COLS[c]}{ROWS[r]}')
+        # XXX determine words and score
+        words = self._board.add(letters=letters.lower(), pos=pos, orientation=orientation)
+        # score = self._score_word(word=candidate)
+        # # Update premium square mask.
+        # for i in candidate.index:
+        #     self._mask[i] = True
 
-        # Determine new words from candidate.
-        board_words = defaultdict(list)
-        for w in self._words:
-            for i in w.index:
-                board_words[i].append(w)
-        print(board_words)
-        print(board_letters)
-
-        # Find neighbors/merge candidate
-        print(candidate.index)
-        neighbors = candidate.neighbors()
-        for n in neighbors:
-            # print([index_to_pos(index=ni) for ni in n])
-            for ni in n:
-                if ni in board_words:
-                    print(f'neighbor at {index_to_pos(index=ni)}')
-
-        self._words.append(candidate)
-
-        # XXX loop over all words...
-        score = self._score_word(word=candidate)
-
-        # Update premium square mask.
-        for i in candidate.index:
-            self._mask[i] = True
-
-        self._score[player] += score
+        # self._score[player] += score
         self._turns[player] += 1
 
         self._player += 1
         self._player %= self._num_players
 
     def _score_word(self, *, word):
+        """XXX
+        """
+        return
         word_multiplier = [max(1, (1 - self._mask[i]) * WORD_PREMIUM[i])
                            for i in word.index]
         score = sum([max(1, (1 - self._mask[i]) * LETTER_PREMIUM[i]) * LETTER_SCORES[l]
@@ -246,17 +295,8 @@ class Board:
         return reduce(mul, word_multiplier, 1) * score
 
     def __str__(self):
-        # XXX can create board on the fly from the list of words...
-        board = ['.' for c in range(15) for r in range(15)]
-        for w in self._words:
-            for i, l in zip(w.index, w.letters):
-                board[i] = l
-
+        """XXX
+        """
         scores = '\n'.join([f'Player {i}: {self._score[i]}'
-                           for i in range(self._num_players)])
-        header = '   {}'.format(' '.join(COLS))
-        def _line(j):
-            return '{:2s} {}'.format(
-                    ROWS[j],
-                    ' '.join([f'{l}' for l in board[15 * j:15 * (j + 1)]]))
-        return '\n'.join([scores, header] + [_line(i) for i in range(15)])
+                            for i in range(self._num_players)])
+        return '\n'.join([scores, str(self._board)])

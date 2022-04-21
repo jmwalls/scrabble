@@ -1,3 +1,3 @@
-# scrabble
+# Scrabble
 
 Automatically score scrabble games...

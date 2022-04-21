@@ -1,32 +1,184 @@
 #!/usr/bin/env python
 import unittest
 
-import numpy as np  # XXX
-
 import engine
 
+# XXX make sure we're catching the *right* exceptions
 
-class TestBoardBasics(unittest.TestCase):
+class TestBoard(unittest.TestCase):
+    def test_first_word(self):
+        """First word should return itself."""
+        print('foo')
+        dut = engine.Board()
+        ret = dut.add(letters='start',
+                      pos='d8',
+                      orientation=engine.Orientation.HORIZONTAL)
+        self.assertEqual(len(ret), 1)
+        self.assertTrue('start' in ret)
+
+    def test_already_set(self):
+        """Check that we won't update a letter that's already been set."""
+        dut = engine.Board()
+        dut.add(letters='start',
+                pos='d8',
+                orientation=engine.Orientation.HORIZONTAL)
+        try:
+            dut.add(letters='start',
+                    pos='d8',
+                    orientation=engine.Orientation.VERTICAL)
+            self.assertTrue(False)
+        except Exception:
+            self.assertTrue(True)
+
+    def test_vertical(self):
+        """Detect new word added vertically."""
+        dut = engine.Board()
+        dut.add(letters='start',
+                pos='d8',
+                orientation=engine.Orientation.HORIZONTAL)
+        ret = dut.add(letters='tale',
+                      pos='h8',
+                      orientation=engine.Orientation.VERTICAL)
+        self.assertEqual(len(ret), 1)
+        self.assertTrue('tale' in [r[0] for r in ret])
+
+    def test_vertical_alt(self):
+        """Detect new word added vertically expressed as added letters only."""
+        dut = engine.Board()
+        dut.add(letters='start',
+                pos='d8',
+                orientation=engine.Orientation.HORIZONTAL)
+        ret = dut.add(letters='ale',
+                      pos='h9',
+                      orientation=engine.Orientation.VERTICAL)
+        self.assertEqual(len(ret), 1)
+        self.assertTrue('tale' in ret)
+
+    def test_vertical_append(self):
+        """Detect new words added vertically."""
+        dut = engine.Board()
+        dut.add(letters='start',
+                pos='d8',
+                orientation=engine.Orientation.HORIZONTAL)
+        ret = dut.add(letters='safe',
+                      pos='i8',
+                      orientation=engine.Orientation.VERTICAL)
+        self.assertEqual(len(ret), 2)
+        self.assertTrue('starts' in ret)
+        self.assertTrue('safe' in ret)
+
+    def test_vertical_cross_append(self):
+        """Detect new words added vertically."""
+        dut = engine.Board()
+        dut.add(letters='start',
+                pos='d8',
+                orientation=engine.Orientation.HORIZONTAL)
+        ret = dut.add(letters='base',
+                      pos='i6',
+                      orientation=engine.Orientation.VERTICAL)
+        self.assertEqual(len(ret), 2)
+        self.assertTrue('starts' in ret)
+        self.assertTrue('base' in ret)
+
+    def test_vertical_cross(self):
+        """Detect new words added vertically intersecting existing."""
+        dut = engine.Board()
+        dut.add(letters='start',
+                pos='d8',
+                orientation=engine.Orientation.HORIZONTAL)
+        ret = dut.add(letters='score',
+                      pos='g5',
+                      orientation=engine.Orientation.VERTICAL)
+        self.assertEqual(len(ret), 1)
+        self.assertTrue('score' in ret)
+
+    def test_horizontal(self):
+        """Detect new word added vertically."""
+        dut = engine.Board()
+        dut.add(letters='start',
+                pos='h6',
+                orientation=engine.Orientation.VERTICAL)
+        ret = dut.add(letters='tale',
+                      pos='h10',
+                      orientation=engine.Orientation.HORIZONTAL)
+        self.assertEqual(len(ret), 1)
+        self.assertTrue('tale' in ret)
+
+    def test_horizontal_alt(self):
+        """Detect new word added horizontally expressed as added letters only."""
+        dut = engine.Board()
+        dut.add(letters='start',
+                pos='h6',
+                orientation=engine.Orientation.VERTICAL)
+        ret = dut.add(letters='ale',
+                      pos='i10',
+                      orientation=engine.Orientation.HORIZONTAL)
+        self.assertEqual(len(ret), 1)
+        self.assertTrue('tale' in ret)
+
+    def test_horizontal_append(self):
+        """Detect new words added horizontally."""
+        dut = engine.Board()
+        dut.add(letters='start',
+                pos='h6',
+                orientation=engine.Orientation.VERTICAL)
+        ret = dut.add(letters='safe',
+                      pos='h11',
+                      orientation=engine.Orientation.HORIZONTAL)
+        self.assertEqual(len(ret), 2)
+        self.assertTrue('starts' in ret)
+        self.assertTrue('safe' in ret)
+
+    def test_horizontal_cross_append(self):
+        """Detect new words added horizontally."""
+        dut = engine.Board()
+        dut.add(letters='start',
+                pos='h6',
+                orientation=engine.Orientation.VERTICAL)
+        ret = dut.add(letters='base',
+                      pos='f11',
+                      orientation=engine.Orientation.HORIZONTAL)
+        self.assertEqual(len(ret), 2)
+        self.assertTrue('starts' in ret)
+        self.assertTrue('base' in ret)
+
+    def test_horizontal_cross(self):
+        """Detect new words added horizontally intersecting existing."""
+        dut = engine.Board()
+        dut.add(letters='start',
+                pos='h6',
+                orientation=engine.Orientation.VERTICAL)
+        ret = dut.add(letters='score',
+                      pos='e9',
+                      orientation=engine.Orientation.HORIZONTAL)
+        self.assertEqual(len(ret), 1)
+        self.assertTrue('score' in ret)
+
+
+class TestGameBasics(unittest.TestCase):
     def test_num_players(self):
         """At least one player must play."""
         try:
-            dut = engine.Board(num_players = 0)
+            dut = engine.Game(num_players = 0)
             self.assertTrue(False)
         except ValueError:
             self.assertTrue(True)
 
     def test_wrong_player(self):
         """Play should proceed in order of players."""
-        dut = engine.Board(num_players = 2)
+        dut = engine.Game(num_players = 2)
         try:
-            dut.play(player=1, letters='foo', pos=(3, 2))
+            dut.play(player=1,
+                     letters='start',
+                     pos='d8',
+                     orientation=engine.Orientation.HORIZONTAL)
             self.assertTrue(False)
         except Exception:
             self.assertTrue(True)
 
     def test_first_word(self):
         """First word should include center tile."""
-        dut = engine.Board(num_players = 2)
+        dut = engine.Game(num_players = 2)
         try:
             dut.play(player=0,
                      letters='start',
@@ -38,28 +190,40 @@ class TestBoardBasics(unittest.TestCase):
 
     def test_already_set(self):
         """Check that we won't update a letter that's already been set."""
-        self.assertTrue(False)
+        dut = engine.Game(num_players = 2)
+        dut.play(player=0,
+                 letters='start',
+                 pos='d8',
+                 orientation=engine.Orientation.HORIZONTAL)
+        try:
+            dut.play(player=1,
+                     letters='start',
+                     pos='d8',
+                     orientation=engine.Orientation.VERTICAL)
+            self.assertTrue(False)
+        except Exception:
+            self.assertTrue(True)
 
 
 class TestBoardIndexing(unittest.TestCase):
     def test_basic_horizontal(self):
-        ret = engine._index(row=1,
-                            col=1,
-                            num_letters=3,
-                            orientation=engine.Orientation.HORIZONTAL)
+        ret = engine._indices(row=1,
+                              col=1,
+                              num_letters=3,
+                              orientation=engine.Orientation.HORIZONTAL)
         self.assertEqual(len(ret), 3)
         self.assertEqual(ret, [16, 17, 18])
 
     def test_basic_vertical(self):
-        ret = engine._index(row=1,
-                            col=1,
-                            num_letters=3,
-                            orientation=engine.Orientation.VERTICAL)
+        ret = engine._indices(row=1,
+                              col=1,
+                              num_letters=3,
+                              orientation=engine.Orientation.VERTICAL)
         self.assertEqual(len(ret), 3)
         self.assertEqual(ret, [16, 31, 46])
 
 
-class TestBoardScoring(unittest.TestCase):
+class TestGame(unittest.TestCase):
     def test_used_letter_multiplier(self):
         """Check that we won't re-score a letter multiplier."""
         self.assertTrue(False)
@@ -71,7 +235,7 @@ class TestBoardScoring(unittest.TestCase):
     def test_basic(self):
         """XXX"""
         print('playing...')
-        dut = engine.Board(num_players=2)
+        dut = engine.Game(num_players=2)
         print(dut)
 
         dut.play(player=0,
@@ -91,32 +255,6 @@ class TestBoardScoring(unittest.TestCase):
                  pos='k7',
                  orientation=engine.Orientation.HORIZONTAL)
         print(dut)
-
-
-class TestWords(unittest.TestCase):
-    def test_basic(self):
-        """XXX"""
-        w1 = engine.Word(letters='abc',
-                         pos='h8',
-                         orientation=engine.Orientation.HORIZONTAL)
-        w2 = engine.Word(letters='cde',
-                         pos='j8',
-                         orientation=engine.Orientation.VERTICAL)
-        self.assertTrue(False)
-
-    def test_merge(self):
-        """XXX"""
-        w1 = engine.Word(letters='abc',
-                         pos='h8',
-                         orientation=engine.Orientation.HORIZONTAL)
-        w2 = engine.Word(letters='cde',
-                         pos='j8',
-                         orientation=engine.Orientation.VERTICAL)
-        w3 = engine.Word(letters='de',
-                         pos='j9',
-                         orientation=engine.Orientation.VERTICAL)
-        # w1/w2 should have same result as w1/w3.
-        self.assertTrue(False)
 
 
 if __name__ == '__main__':
