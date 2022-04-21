@@ -1,0 +1,15 @@
+train_data:
+    - data/labelled/0000
+    - data/labelled/0001
+    - data/labelled/0002
+    - data/labelled/0003
+    - data/labelled/0004
+
+test_data:
+    - data/labelled/0005
+
+fraction_other: 0.2
+
+batch_size: 4
+learning_rate: 1.0e-3
+epochs: 15
